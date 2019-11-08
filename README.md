@@ -6,7 +6,7 @@ Installing Red on windows: https://red-discordbot.readthedocs.io/en/stable/insta
 
 Installing Red on most linux versions: https://red-discordbot.readthedocs.io/en/stable/install_linux_mac.html
 
-- Command to start the bot, in terminal / command prompt:
+Command to start the bot, in terminal / command prompt:
 * `redbot-launcher` 
 
 When having bot in discord:
@@ -15,8 +15,8 @@ When having bot in discord:
   
 Calendar Package:
 
-- Dependencies:
+Dependencies:
 * `pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib`
 
-- To load the Calendar package
+To load the Calendar package
 * `!load Calendar`
