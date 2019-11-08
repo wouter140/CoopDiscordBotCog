@@ -1,53 +1,92 @@
 from redbot.core import commands
 
+import asyncio
 import discord
 
 class CreateCalendarEvent():
-
-    client = None
 
     name = None
     time = None
     duration = None
     attendees = None
 
-    def __init__(self, ctx):
-        client = ctx
-        client.send("===== We are making a new Calendar Event! =====")
+    def __init__(self, ctx, bot):
+        self.ctx = ctx
+        self.bot = bot
+        ctx.send("===== We are making a new Calendar Event! =====")
+
+    # Check function if the user is equal to the person that started the command and its in the same channel
+    def check(self, m):
+        return m.author == self.ctx.author and m.channel == self.ctx.channel
 
     async def HandleName(self):
-        await client.send("What are we calling this event?")
+        await self.ctx.send("What are we calling this event?")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        self.name = message
+        try:
+            # Get message
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            self.name = message.content
+            return True
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return False
 
     async def HandleDescription(self):
-        await client.send("Do you have a more detailed description?")
+        await self.ctx.send("Do you have a more detailed description?")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        self.name = message
+        try:
+            # Get description
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            self.description = message.content
+            return True
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return False
 
     async def HandleTime(self):
-        await client.send("When is this event going to take place?")
+        await self.ctx.send("When is this event going to take place? Format: DD-MM-YYYY HH:MM")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        self.time = message
+        try:
+            # Get start time
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            self.time = message.content
+            return True
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return False
 
     async def HandleDuration(self):
-        await client.send("How long is this event going to take?")
+        await self.ctx.send("How long is this event going to take?")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        self.duration = message
+        try:
+            # Get duration
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            self.duration = message.content
+            return True
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return False
 
     async def HandleAttendees(self):
-        await client.send("Anyone that has to attend this meeting?")
+        await self.ctx.send("Anyone that has to attend this meeting?")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        #TODO: Convert @'s, numbers and names to user emails
-        self.attendees = message
+        try:
+            # Get attendees
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            #TODO: Convert @'s, numbers and names to user emails
+            self.attendees = message.content
+            return True
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return False
 
     async def FinishEvent(self):
-        await client.send("Do you want to confirm this Event at {} for {}?")
+        await self.ctx.send("Do you want to confirm this Event at {} for {}?")
 
-        message, user = await client.wait_for('message', timeout=120.0)
-        return (message.lower() == "yes" or message.lower() == "y")
+        try:
+            # Get confirmation
+            message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+            return (message.content.lower() == "yes" or message.content.lower() == "y")
+        except asyncio.TimeoutError:
+            await self.ctx.send("Timed out, stopped creating event!")
+            return True

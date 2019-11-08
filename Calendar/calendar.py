@@ -113,15 +113,20 @@ class Calendar(commands.Cog):
             return
 
         #Create the calendar event    
-        calendarEventHandler = CreateCalendarEvent(ctx)
+        calendarEventHandler = CreateCalendarEvent(ctx, self.bot)
 
-        await calendarEventHandler.HandleName() #Event Name
-        await calendarEventHandler.HandleDescription() #Event Description
-        await calendarEventHandler.HandleTime() #Event Start Time
-        await calendarEventHandler.HandleDuration() #Event Duration
-        await calendarEventHandler.HandleAttendees() #Event Attendees
+        if not await calendarEventHandler.HandleName(): # Event Name
+            return
+        if not await calendarEventHandler.HandleTime(): # Event Start Time
+            return
+        if not await calendarEventHandler.HandleDuration(): # Event Duration
+            return
+        if not await calendarEventHandler.HandleDescription(): # Event Description
+            return
+        if not await calendarEventHandler.HandleAttendees(): # Event Attendees
+            return
 
-        if not await calendarEventHandler.FinishEvent(): #Finish Event Creation
+        if not await calendarEventHandler.FinishEvent(): # Finish Event Creation
             await ctx.send("Cancelled Event Creation!")
             return
         
