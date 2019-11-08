@@ -8,6 +8,11 @@ Installing Red on most linux versions: https://red-discordbot.readthedocs.io/en/
 
 When having bot in discord:
 * !addpath (path to the location of the root of this package)
-* !load Calendar
 * !load (other packages)
   
+Calendar Package:
+
+- Dependencies:
+`pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib`
+
+`!load Calendar`
