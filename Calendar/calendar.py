@@ -1,4 +1,5 @@
 from redbot.core import commands
+from redbot.core import checks
 
 import os
 import asyncio
@@ -39,14 +40,15 @@ class Calendar(commands.Cog):
         return build('calendar', 'v3', credentials=creds)
 
     @commands.command()
-    async def calendar(self, ctx):
+    async def calendar(self, ctx: commands.Context):
         """This does stuff!"""
         # Your code will go here
         await ctx.send("I can do stuff!")
         await ctx.send("Hey!")
 
     @commands.command()
-    async def initcalendar(self, ctx):
+    @checks.is_owner()
+    async def initcalendar(self, ctx: commands.Context):
         # The file token.pickle stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
         # time.
@@ -106,7 +108,7 @@ class Calendar(commands.Cog):
             return
  
     @commands.command()
-    async def createevent(self, ctx):
+    async def createevent(self, ctx: commands.Context):
         service = self.get_calendar_service()
         if not service:
             await ctx.send("Invalid Calendar Credentials!")

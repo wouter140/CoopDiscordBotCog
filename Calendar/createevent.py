@@ -10,7 +10,7 @@ class CreateCalendarEvent():
     duration = None
     attendees = None
 
-    def __init__(self, ctx, bot):
+    def __init__(self, ctx: commands.Context, bot):
         self.ctx = ctx
         self.bot = bot
         ctx.send("===== We are making a new Calendar Event! =====")
