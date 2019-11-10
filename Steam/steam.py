@@ -59,6 +59,11 @@ class Steam(commands.Cog):
             return
 
         # instance.<interface>.<method>
+        # https://partner.steamgames.com/doc/webapi/ISteamApps#SetAppBuildLive
+        # https://partner.steamgames.com/doc/webapi_overview/responses#status_codes
+
+        # https://steam.readthedocs.io/en/latest/user_guide.html#calling-an-endpoint
+        # https://github.com/ValvePython/steam/blob/master/steam/webapi.py
         steamAPIInstance.ISteamApps.SetAppBuildLive(appid=appID, buildid=build_number, betakey=branch)
         response = steamAPIInstance.call('ISteamApps.SetAppBuildLive', appid=appID, buildid=build_number, betakey=branch)
         print(response)
@@ -77,8 +82,12 @@ class Steam(commands.Cog):
 
         steamAPIInstance.ISteamApps.GetAppBetas(appid=appID)
         response = steamAPIInstance.call('ISteamApps.GetAppBetas', appid=appID)
-        print(response)
-        await ctx.send(response)
+
+        await ctx.send("development: " + str(response['response']['betas']['development']['BuildID']))
+        await ctx.send("development-debug: " + str(response['response']['betas']['development-debug']['BuildID']))
+        await ctx.send("stable: " + str(response['response']['betas']['stable']['BuildID']))
+        await ctx.send("staging: " + str(response['response']['betas']['staging']['BuildID']))
+        await ctx.send("default: " + str(response['response']['betas']['public']['BuildID']))
 
     @commands.command()
     async def getbuilds(self, ctx: commands.Context):
