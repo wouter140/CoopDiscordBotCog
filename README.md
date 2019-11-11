@@ -20,3 +20,12 @@ Dependencies:
 
 To load the Calendar package
 * `!load Calendar`
+
+
+Steam Package:
+
+Dependencies:
+* `pip install -U steam`
+
+To load the Calendar package
+* `!load Steam`
