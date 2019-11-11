@@ -1,31 +1,63 @@
-CoopDiscordBotCog
+# CoopDiscordBotCog
+Collection of plugins or cogs as they are known in RedBot for use with the Coop Gamedev team.
 
-Cogs for Red-DiscordBot: https://github.com/Cog-Creators/Red-DiscordBot
+## Redbot
+[Redbot Github Page](https://github.com/Cog-Creators/Red-DiscordBot)
 
-Installing Red on windows: https://red-discordbot.readthedocs.io/en/stable/install_windows.html
+### Redbot Installation
+[Installing Red on Windows](https://red-discordbot.readthedocs.io/en/stable/install_windows.html)
+```bash
+python -m pip install -U Red-DiscordBot
+```
 
-Installing Red on most linux versions: https://red-discordbot.readthedocs.io/en/stable/install_linux_mac.html
+[Installing Red on most Linux versions](https://red-discordbot.readthedocs.io/en/stable/install_linux_mac.html)
 
-Command to start the bot, in terminal / command prompt:
-* `redbot-launcher` 
+### Starting the bot in a terminal:
+```bash
+redbot-launcher
+```
 
-When having bot in discord:
-* !addpath (path to the location of the root of this package)
-* !load (other packages)
+### In Discord:
+```bash
+# Add path to search for packages
+!addpath <path to the root of this package /CoopDiscordBotCog>
+
+# To load a package
+!load <package name>
+```
   
-Calendar Package:
+## Calendar Package:
 
 Dependencies:
-* `pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib`
+```bash
+# Google Calendar API's
+pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+```
 
 To load the Calendar package
-* `!load Calendar`
+```bash
+!load Calendar
+
+# Initial Setup
+!setSteamWebAPIKey <publisher webapikey>
+!setSteamAppID <appid>
+```
 
 
-Steam Package:
+## Steam Package:
 
 Dependencies:
-* `pip install -U steam`
+```bash
+# ValvePython/steam python steamAPI helper
+pip install -U steam
+
+```
 
 To load the Calendar package
-* `!load Steam`
+```bash
+!load Steam
+
+# Initial Setup
+!initcalendar
+```
