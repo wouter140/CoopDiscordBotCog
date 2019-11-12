@@ -40,8 +40,10 @@ To load the Calendar package
 !load Calendar
 
 # Initial Setup
-!setSteamWebAPIKey <publisher webapikey>
-!setSteamAppID <appid>
+!initcalendar
+
+# Commands
+!createevent
 ```
 
 
@@ -54,10 +56,16 @@ pip install -U steam
 
 ```
 
-To load the Calendar package
+To load the Steam package
 ```bash
 !load Steam
 
 # Initial Setup
-!initcalendar
+!steam webAPIKey <publisher webapikey>
+!steam appID <appid>
+
+# Commands
+!steam list
+!steam push <branch> <buildID>
+!steam upgrade <branch>
 ```
