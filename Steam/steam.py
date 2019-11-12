@@ -96,7 +96,36 @@ class Steam(commands.Cog):
             else: 
                 await ctx.send("Error: " + str(response['response']['message']))
                 
-    @commands.command()
+    @steam.command(aliases=['up'])
+    async def upgrade(self, ctx: commands.Context, branch: str):
+        async with ctx.channel.typing():
+            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
+            if steamAPIInstance is None:
+                return
+            appID = await self.config.guild(ctx.guild).appid()
+            if appID is None:
+                await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                return
+
+            build_number = 0 #TODO: from branch we want to upgrade
+
+            branch_upgrader = {
+                'development': 'stable',
+                'stable': 'staging'
+            }
+            upgrade_branch = branch_upgrader.get(branch, None)
+            if upgrade_branch is None:
+                await ctx.send(f"No target branch to upgrade **{branch}** to!")
+                return
+            
+            steamAPIInstance.ISteamApps.SetAppBuildLive(appid=appID, buildid=build_number, betakey=upgrade_branch)
+            response = steamAPIInstance.call('ISteamApps.SetAppBuildLive', appid=appID, buildid=build_number, betakey=branch)
+            
+            if response['response']['result'] is 1:
+                await ctx.send(f"Upgraded **{branch}** with build **{build_number}** to **{upgrade_branch}**. Check Steam for the update!")
+            else: 
+                await ctx.send("Error: " + str(response['response']['message']))
+
     async def getbuilds(self, ctx: commands.Context):
         steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
         if(steamAPIInstance == None):
