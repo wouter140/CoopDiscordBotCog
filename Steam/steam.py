@@ -24,6 +24,10 @@ class Steam(commands.Cog):
         }
         self.config.register_guild(**default_guild)
 
+    @commands.group()
+    async def steam(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.send('Invalid steam command passed...')
 
     async def getSteamPartnerAPIInstance(self, ctx: commands.Context):
         steamKey = await self.config.guild(ctx.guild).steamWebAPIKey()
@@ -34,60 +38,62 @@ class Steam(commands.Cog):
         return WebAPI(key=steamKey, apihost=APIHost.Partner)
 
 
-    @commands.command()
+    @steam.command()
     @checks.is_owner()
-    async def setSteamWebAPIKey(self, ctx: commands.Context, new_value: str):
+    async def webAPIKey(self, ctx: commands.Context, new_value: str):
+        await ctx.message.delete(delay=3)
         await self.config.guild(ctx.guild).steamWebAPIKey.set(new_value)
         await ctx.send("Steam WebAPIKey has been updated!")
 
-    @commands.command()
+    @steam.command()
     @checks.is_owner()
-    async def setSteamAppID(self, ctx: commands.Context, new_value: int):
+    async def appID(self, ctx: commands.Context, new_value: int):
+        await ctx.message.delete(delay=3)
         await self.config.guild(ctx.guild).appid.set(new_value)
         await ctx.send("Steam AppID has been updated!")
 
+
+    # Get the current build ID's on the steam branches
+    @steam.command()
+    async def current(self, ctx: commands.Context):
+        async with ctx.channel.typing():
+            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
+            if(steamAPIInstance == None):
+                return
+            appID = await self.config.guild(ctx.guild).appid()
+            if(appID == None):
+                await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                return
+
+            steamAPIInstance.ISteamApps.GetAppBetas(appid=appID)
+            response = steamAPIInstance.call('ISteamApps.GetAppBetas', appid=appID)
+
+            embed = discord.Embed(type="rich", colour=0)
+
+            for branch in response['response']['betas']:
+                embed.add_field(name=branch, value=response['response']['betas'][branch]["BuildID"], inline=False)
+
+            await ctx.send(embed=embed)
     
-    @commands.command()
+    @steam.command()
     async def push(self, ctx: commands.Context, branch: str, build_number: int):
-        steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
-        if(steamAPIInstance == None):
-            return
+        async with ctx.channel.typing():
+            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
+            if(steamAPIInstance == None):
+                return
 
-        appID = await self.config.guild(ctx.guild).appid()
-        if(appID == None):
-            await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
-            return
+            appID = await self.config.guild(ctx.guild).appid()
+            if(appID == None):
+                await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                return
 
-        # instance.<interface>.<method>
-        # https://partner.steamgames.com/doc/webapi/ISteamApps#SetAppBuildLive
-        # https://partner.steamgames.com/doc/webapi_overview/responses#status_codes
-
-        # https://steam.readthedocs.io/en/latest/user_guide.html#calling-an-endpoint
-        # https://github.com/ValvePython/steam/blob/master/steam/webapi.py
-        steamAPIInstance.ISteamApps.SetAppBuildLive(appid=appID, buildid=build_number, betakey=branch)
-        response = steamAPIInstance.call('ISteamApps.SetAppBuildLive', appid=appID, buildid=build_number, betakey=branch)
-        print(response)
-        await ctx.send(response)
-
-    @commands.command()
-    async def getbetas(self, ctx: commands.Context):
-        steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
-        if(steamAPIInstance == None):
-            return
-
-        appID = await self.config.guild(ctx.guild).appid()
-        if(appID == None):
-            await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
-            return
-
-        steamAPIInstance.ISteamApps.GetAppBetas(appid=appID)
-        response = steamAPIInstance.call('ISteamApps.GetAppBetas', appid=appID)
-
-        await ctx.send("development: " + str(response['response']['betas']['development']['BuildID']))
-        await ctx.send("development-debug: " + str(response['response']['betas']['development-debug']['BuildID']))
-        await ctx.send("stable: " + str(response['response']['betas']['stable']['BuildID']))
-        await ctx.send("staging: " + str(response['response']['betas']['staging']['BuildID']))
-        await ctx.send("default: " + str(response['response']['betas']['public']['BuildID']))
+            steamAPIInstance.ISteamApps.SetAppBuildLive(appid=appID, buildid=build_number, betakey=branch)
+            response = steamAPIInstance.call('ISteamApps.SetAppBuildLive', appid=appID, buildid=build_number, betakey=branch)
+            
+            if response['response']['result'] is 1:
+                await ctx.send(f"Updated **{branch}** to build **{build_number}**. Check Steam for the update!")
+            else: 
+                await ctx.send("Error: " + str(response['response']['message']))
 
     @commands.command()
     async def getbuilds(self, ctx: commands.Context):
