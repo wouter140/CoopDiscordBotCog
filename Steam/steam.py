@@ -6,12 +6,10 @@ import os
 import asyncio
 import discord
 
-from steam.webapi import WebAPI
-from steam.webapi import APIHost
+from steam.webapi import WebAPI, APIHost
+
 
 class Steam(commands.Cog):
-    """Calendar Cog for the Discord Bot.
-       Implements Google Calendar Functionality with the bot."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -31,7 +29,7 @@ class Steam(commands.Cog):
 
     async def getSteamPartnerAPIInstance(self, ctx: commands.Context):
         steamKey = await self.config.guild(ctx.guild).steamWebAPIKey()
-        if(steamKey == None):
+        if(steamKey is None):
             await ctx.send("No steam WebAPIKey set! Use the setSteamWebAPIKey <webapikey> command to set it!")
             return None
 
@@ -54,14 +52,14 @@ class Steam(commands.Cog):
 
 
     # Get the current build ID's on the steam branches
-    @steam.command()
+    @steam.command(aliases=['list', 'latest'])
     async def current(self, ctx: commands.Context):
         async with ctx.channel.typing():
             steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
-            if(steamAPIInstance == None):
+            if steamAPIInstance is None:
                 return
             appID = await self.config.guild(ctx.guild).appid()
-            if(appID == None):
+            if appID is None:
                 await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
                 return
 
@@ -75,15 +73,18 @@ class Steam(commands.Cog):
 
             await ctx.send(embed=embed)
     
-    @steam.command()
+    @steam.command(aliases=['update', 'set'])
     async def push(self, ctx: commands.Context, branch: str, build_number: int):
-        async with ctx.channel.typing():
-            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
-            if(steamAPIInstance == None):
+        if branch is 'public' or branch is 'default':
+                await ctx.send("Not allowed to update the public branch here! Discuss this to make sure to push to the public **(live)** branch and do this in the Steamworks page!")
                 return
 
+        async with ctx.channel.typing():
+            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
+            if steamAPIInstance is None:
+                return
             appID = await self.config.guild(ctx.guild).appid()
-            if(appID == None):
+            if appID is None:
                 await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
                 return
 
@@ -94,7 +95,7 @@ class Steam(commands.Cog):
                 await ctx.send(f"Updated **{branch}** to build **{build_number}**. Check Steam for the update!")
             else: 
                 await ctx.send("Error: " + str(response['response']['message']))
-
+                
     @commands.command()
     async def getbuilds(self, ctx: commands.Context):
         steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
