@@ -14,7 +14,7 @@ class Steam(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        self.config = Config.get_conf(self, identifier=192837645)
+        self.config = Config.get_conf(self, identifier=200000002)
 
         default_guild = {
             "steamWebAPIKey": None,
