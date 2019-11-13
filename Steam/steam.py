@@ -8,6 +8,12 @@ import discord
 
 from steam.webapi import WebAPI, APIHost
 
+# instance.<interface>.<method>
+# https://partner.steamgames.com/doc/webapi/ISteamApps#SetAppBuildLive
+# https://partner.steamgames.com/doc/webapi_overview/responses#status_codes
+
+# https://steam.readthedocs.io/en/latest/user_guide.html#calling-an-endpoint
+# https://github.com/ValvePython/steam/blob/master/steam/webapi.py
 
 class Steam(commands.Cog):
 
@@ -126,18 +132,21 @@ class Steam(commands.Cog):
             else: 
                 await ctx.send("Error: " + str(response['response']['message']))
 
+
+    @steam.command()
     async def getbuilds(self, ctx: commands.Context):
-        steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
-        if(steamAPIInstance == None):
-            return
+        async with ctx.channel.typing():
+            steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx)
+            if steamAPIInstance is None:
+                return
+            appID = await self.config.guild(ctx.guild).appid()
+            if appID is None:
+                await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                return
 
-        appID = await self.config.guild(ctx.guild).appid()
-        if(appID == None):
-            await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
-            return
+            steamAPIInstance.ISteamApps.GetAppBuilds(appid=appID)
+            response = steamAPIInstance.call('ISteamApps.GetAppBuilds', appid=appID)
+            print(response)
 
-        steamAPIInstance.ISteamApps.GetAppBuilds(appid=appID)
-        response = steamAPIInstance.call('ISteamApps.GetAppBuilds', appid=appID)
-        print(response)
-        await ctx.send(response)
+            #await ctx.send(response)
     
