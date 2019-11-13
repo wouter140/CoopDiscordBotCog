@@ -167,7 +167,7 @@ class Calendar(commands.Cog):
             return
 
         # Create the calendar event    
-        calendarEventHandler = CreateCalendarEvent(ctx, self.bot)
+        calendarEventHandler = CreateCalendarEvent(ctx, self.bot, self.config)
 
         # Get event create user name 
         creatorName = ctx.message.author.nick
@@ -226,7 +226,7 @@ class Calendar(commands.Cog):
 
         await asyncio.sleep(.3)
 
-        embed.description += calendarEventHandler.description
+        embed.description = calendarEventHandler.description
         embed.set_footer(text="Event attendees")
         await calendarDataMsg.edit(embed=embed)
 
@@ -275,18 +275,16 @@ class Calendar(commands.Cog):
                     #[ {'email': 'lpage@example.com'} ]
             }).execute()
 
-            print(event)
-
             await calendarEventHandler.stageMessage.edit(content="Successfully Created Your Event!")
-            await calendarEventHandler.stageMessage.delete(delay=2)
+            await calendarEventHandler.stageMessage.delete(delay=3)
 
             # Get link to send and add it to complete message
             eventLink = event.get('htmlLink')
-            linkMsg = await ctx.send(f"You can find the event over at {eventLink}", delete_after=5)
+            linkMsg = await ctx.send(f"You can find the event at {eventLink}", delete_after=6)
             await linkMsg.edit(suppress=True)
 
-            embed.set_author(name='Created Calendar Event (link)', icon_url=ctx.message.author.avatar_url, url=eventLink)
-            embed.url=eventLink
+            embed.set_author(name='Created Calendar Event', icon_url=ctx.message.author.avatar_url, url=eventLink)
+            embed.add_field(name="Event Link", value=eventLink, inline=False)
             await calendarDataMsg.edit(embed=embed)
 
             '''
