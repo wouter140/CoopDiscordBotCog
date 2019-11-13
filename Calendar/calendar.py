@@ -1,4 +1,4 @@
-from redbot.core import commands, checks
+from redbot.core import commands, checks, Config
 
 import os
 import asyncio
@@ -23,6 +23,15 @@ class Calendar(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+        self.config = Config.get_conf(self, identifier=100000001)
+
+        default_guild = {
+            "successEmoji": None,
+            "cancelEmoji": None
+        }
+        self.config.register_guild(**default_guild)
+
+
     def get_calendar_service(self):
         creds = None
 
@@ -46,15 +55,7 @@ class Calendar(commands.Cog):
 
         return build('calendar', 'v3', credentials=creds)
 
-
-    @commands.group()
-    async def calendar(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            await ctx.send('Invalid steam command passed...')
-
-    @calendar.command()
-    @checks.is_owner()
-    async def init(self, ctx: commands.Context):
+    async def handleCredentials(self, ctx: commands.Context):
         # The file token.pickle stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
         # time.
@@ -113,10 +114,50 @@ class Calendar(commands.Cog):
             await ctx.send("Already Valid Credentials Available! Delete token.pickle in the bot to reset.")
             return
  
+
+    @commands.group()
+    async def calendar(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send('Invalid steam command passed...')
+
+
     @calendar.command()
-    async def test(self, ctx):
-        reaction = await self.bot.wait_for('reaction_add', timeout=40.0)
-        await ctx.send(reaction)
+    @checks.is_owner()
+    async def init(self, ctx: commands.Context):
+        # Check function if the user is equal to the person that started the command and its in the same channel
+        def check(m):
+            return m.author == ctx.author and m.channel == ctx.channel
+
+        msg = await ctx.send("Please specify the **success (ok)** emoji by sending it!")
+        try:
+            message = await self.bot.wait_for('message', timeout=30.0, check=check)
+            await self.config.guild(ctx.guild).successEmoji.set(message.content)
+            await message.delete()
+        except asyncio.TimeoutError:
+            await ctx.send("Command timed out.")
+            pass
+        finally:
+            await msg.delete()
+
+        msg = await ctx.send("Please specify the **cancel (error)** emoji by sending it!")
+        try:
+            message = await self.bot.wait_for('message', timeout=30.0, check=check)
+            await self.config.guild(ctx.guild).cancelEmoji.set(message.content)
+            await message.delete()
+        except asyncio.TimeoutError:
+            await ctx.send("Command timed out.")
+            pass
+        finally:
+            await msg.delete()
+
+        # Handle crendentials
+        await self.handleCredentials(ctx)
+
+    @calendar.command()
+    @checks.is_owner()
+    async def credentials(self, ctx: commands.Context):
+        await self.handleCredentials(ctx)
+
 
     @calendar.command(aliases=['createevent', 'new', 'newevent'])
     async def create(self, ctx: commands.Context):
