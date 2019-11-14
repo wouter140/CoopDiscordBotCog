@@ -7,7 +7,7 @@ Collection of plugins or cogs as they are known in RedBot for use with the Coop 
 ### Redbot Installation
 [Installing Red on Windows](https://red-discordbot.readthedocs.io/en/stable/install_windows.html)
 ```bash
-python -m pip install -U Red-DiscordBot
+$ python -m pip install -U Red-DiscordBot
 ```
 
 [Installing Red on most Linux versions](https://red-discordbot.readthedocs.io/en/stable/install_linux_mac.html)
@@ -15,6 +15,8 @@ python -m pip install -U Red-DiscordBot
 ### Starting the bot in a terminal:
 ```bash
 $ redbot-launcher
+#    -- or --
+$ redbot <instance name>
 ```
 
 ### In Discord:
@@ -31,7 +33,7 @@ $ redbot-launcher
 Dependencies:
 ```bash
 # Google Calendar API's
-pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+$ pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
 ```
 
@@ -52,7 +54,7 @@ To load the Calendar package
 Dependencies:
 ```bash
 # ValvePython/steam python steamAPI helper
-pip install -U steam
+$ pip install -U steam
 
 ```
 
