@@ -1,6 +1,6 @@
 # CoopDiscordBotCog
 Collection of plugins or cogs as they are known in RedBot for use with the Coop Gamedev team.
-### Packages
+#### Packages
 - [Calendar](#calendar-package)
 - [Steam](#steam-package)
 
