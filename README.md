@@ -14,7 +14,7 @@ python -m pip install -U Red-DiscordBot
 
 ### Starting the bot in a terminal:
 ```bash
-redbot-launcher
+$ redbot-launcher
 ```
 
 ### In Discord:
@@ -40,10 +40,10 @@ To load the Calendar package
 !load Calendar
 
 # Initial Setup
-!initcalendar
+!calendar init
 
 # Commands
-!createevent
+!calendar create
 ```
 
 
