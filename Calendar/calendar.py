@@ -209,7 +209,7 @@ class Calendar(commands.Cog):
             return
         await calendarEventHandler.HandleTimeMessage()
 
-        await asyncio.sleep(.3)
+        await asyncio.sleep(.15)
 
         embed.title = calendarEventHandler.name
         embed.set_footer(text="Event start datetime")
@@ -220,7 +220,7 @@ class Calendar(commands.Cog):
             return
         await calendarEventHandler.HandleDurationMessage()
 
-        await asyncio.sleep(.3)
+        await asyncio.sleep(.15)
 
         formattedDatetime = datetime.strptime(calendarEventHandler.time, "%d-%m-%Y %H:%M").strftime("%A, %d. %B %Y %I:%M%p")
         embed.add_field(name="Start Time", value=formattedDatetime, inline=False)
@@ -232,7 +232,7 @@ class Calendar(commands.Cog):
             return
         await calendarEventHandler.HandleDescriptionMessage()
 
-        await asyncio.sleep(.3)
+        await asyncio.sleep(.15)
 
         embed.add_field(name="Duration", value=calendarEventHandler.duration + " Hours", inline=False)
         embed.set_footer(text="Event description")
@@ -243,7 +243,7 @@ class Calendar(commands.Cog):
             return
         await calendarEventHandler.HandleAttendeesMessage()
 
-        await asyncio.sleep(.3)
+        await asyncio.sleep(.15)
 
         embed.description = calendarEventHandler.description
         embed.set_footer(text="Event attendees")
@@ -254,7 +254,7 @@ class Calendar(commands.Cog):
             return        
         await calendarEventHandler.FinishEventMessage()
         
-        await asyncio.sleep(.3)
+        await asyncio.sleep(.15)
         
         users = ''.join(["<@" + str(user['userID']) + ">" for user in calendarEventHandler.attendees])
         embed.add_field(name="Attendees", value=users, inline=False)
@@ -296,13 +296,14 @@ class Calendar(commands.Cog):
                 'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees]
                     #[ {'email': 'lpage@example.com'} ]
             }).execute()
+            #TODO: Does not seem to send invitation emails, but does send cancellation emails
 
             await calendarEventHandler.stageMessage.edit(content="Successfully Created Your Event!")
-            await calendarEventHandler.stageMessage.delete(delay=3)
+            await calendarEventHandler.stageMessage.delete(delay=6)
 
             # Get link to send and add it to complete message
             eventLink = event.get('htmlLink')
-            linkMsg = await ctx.send(f"You can find the event at {eventLink}", delete_after=6)
+            linkMsg = await ctx.send(f"You can find the event at {eventLink}", delete_after=3)
             await linkMsg.edit(suppress=True)
 
             embed.set_author(name='Created Calendar Event', icon_url=ctx.message.author.avatar_url, url=eventLink)

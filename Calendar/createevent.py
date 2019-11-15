@@ -73,7 +73,7 @@ class CreateCalendarEvent():
                 users.append(foundUser)
      
         # Return list of unique users
-        uniqueUsersIDs = list(set().union([user['userID'] for user in users], mentionedUserIDs))
+        uniqueUsersIDs = list(set().union(set(), [user['userID'] for user in users], mentionedUserIDs))
         returnUsers = [user for user in registeredUsers if user['userID'] in uniqueUsersIDs]
         return returnUsers
 
