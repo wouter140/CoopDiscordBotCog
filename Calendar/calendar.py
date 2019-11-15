@@ -27,7 +27,8 @@ class Calendar(commands.Cog):
 
         default_guild = {
             "successEmoji": None,
-            "cancelEmoji": None
+            "cancelEmoji": None,
+            "usersConverter": []
         }
         self.config.register_guild(**default_guild)
 
@@ -120,6 +121,25 @@ class Calendar(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send('Invalid steam command passed...')
 
+    @calendar.command()
+    async def addUser(self, ctx: commands.Context, discordTag: discord.Member, fullName: str, email: str, studentID: int):
+        usersConverter = await self.config.guild(ctx.guild).usersConverter()
+        usersConverter.append({"userID": discordTag.id, "name": fullName, "email": email, "studentID": studentID})
+        await self.config.guild(ctx.guild).usersConverter.set(usersConverter)
+        await ctx.send("Added user")
+    @calendar.command()
+    async def addSelf(self, ctx: commands.Context, fullName, email, studentID):
+        usersConverter = await self.config.guild(ctx.guild).usersConverter()
+        usersConverter.append({"userID": ctx.author.id, "name": fullName, "email": email, "studentID": studentID})
+        await self.config.guild(ctx.guild).usersConverter.set(usersConverter)
+        await ctx.send("Added user")
+    @calendar.command()
+    @checks.is_owner()
+    async def getRegisteredUsers(self, ctx: commands.Context):
+        totalMessage = ""
+        for user in (await self.config.guild(ctx.guild).usersConverter()):
+            totalMessage += "**" + user["name"] + "** | " + user["email"] + " | " + str(user["studentID"]) + " | " + str(user["userID"]) + "\n"
+        await ctx.send(totalMessage)
 
     @calendar.command()
     @checks.is_owner()
@@ -158,7 +178,6 @@ class Calendar(commands.Cog):
     async def credentials(self, ctx: commands.Context):
         await self.handleCredentials(ctx)
 
-
     @calendar.command(aliases=['createevent', 'new', 'newevent'])
     async def create(self, ctx: commands.Context):
         service = self.get_calendar_service()
@@ -174,7 +193,7 @@ class Calendar(commands.Cog):
         if creatorName is None:
             creatorName = ctx.message.author.name
 
-        # Create editable event data message
+        # Create editable event data message ======================================
         embed = discord.Embed(type="rich", colour=100)
         embed.set_footer(text="Event name")
         embed.set_author(name="Calendar Event", icon_url=ctx.message.author.avatar_url)
@@ -196,7 +215,7 @@ class Calendar(commands.Cog):
         embed.set_footer(text="Event start datetime")
         await calendarDataMsg.edit(embed=embed)
 
-        # Event Start Time
+        # Event Start Time ==========================
         if not await calendarEventHandler.HandleTime(): 
             return
         await calendarEventHandler.HandleDurationMessage()
@@ -219,7 +238,7 @@ class Calendar(commands.Cog):
         embed.set_footer(text="Event description")
         await calendarDataMsg.edit(embed=embed)
 
-        # Event Description
+        # Event Description ========================
         if not await calendarEventHandler.HandleDescription(): 
             return
         await calendarEventHandler.HandleAttendeesMessage()
@@ -234,10 +253,11 @@ class Calendar(commands.Cog):
         if not await calendarEventHandler.HandleAttendees(): 
             return        
         await calendarEventHandler.FinishEventMessage()
-
+        
         await asyncio.sleep(.3)
-
-        embed.add_field(name="Attendees", value=calendarEventHandler.attendees, inline=False)
+        
+        users = ''.join(["<@" + str(user['userID']) + ">" for user in calendarEventHandler.attendees])
+        embed.add_field(name="Attendees", value=users, inline=False)
         embed.set_footer(text="Finishing up event")
         await calendarDataMsg.edit(embed=embed)
 
@@ -252,12 +272,14 @@ class Calendar(commands.Cog):
         await calendarDataMsg.edit(embed=embed)
         await calendarEventHandler.stageMessage.edit(content="Creating Event...")
 
-        # API Calls ================================
+        # API Calls ===============================================================
         async with ctx.channel.typing():
             startDateTime = datetime.strptime(calendarEventHandler.time, "%d-%m-%Y %H:%M")
 
             durationTimeObject = datetime.strptime(calendarEventHandler.duration, "%H:%M").time()
             endDateTime = startDateTime + timedelta(hours=durationTimeObject.hour, minutes=durationTimeObject.minute)
+            
+            print([{'email': user['email']} for user in calendarEventHandler.attendees])
 
             # Create The Google Calendar Event
             event = service.events().insert(calendarId='primary', body={
@@ -271,7 +293,7 @@ class Calendar(commands.Cog):
                     'dateTime': endDateTime.isoformat(),
                     'timeZone': 'Europe/Amsterdam',
                 },
-                'attendees': calendarEventHandler.attendees
+                'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees]
                     #[ {'email': 'lpage@example.com'} ]
             }).execute()
 
@@ -286,41 +308,48 @@ class Calendar(commands.Cog):
             embed.set_author(name='Created Calendar Event', icon_url=ctx.message.author.avatar_url, url=eventLink)
             embed.add_field(name="Event Link", value=eventLink, inline=False)
             await calendarDataMsg.edit(embed=embed)
+            
+        # Cleanup =================================================================
+        #TODO: Send created event message to separate readonly events channel and, remove this one / keep small, to keep channel sorta clean
+        
+        #TODO: Send personal messages to people that have been invited
+        #TODO: Make it possible for others to add themselves
+        #TODO: Possibly an x emote to delete the event (only works for creator)
 
-            '''
-            {
-                'kind': 'calendar#event', 
-                'etag': '"3147191931698000"', 
-                'id': 'jmr762ma2ja3bphruop04kta3o', 
-                'status': 'confirmed', 
-                'htmlLink': 'https://www.google.com/calendar/event?eid=am1yNzYybWEyamEzYnBocnVvcDA0a3RhM28gd291dGVyLmdydXR0ZXJAbQ', 
-                'created': '2019-11-12T21:59:25.000Z', 
-                'updated': '2019-11-12T21:59:25.849Z', 
-                'summary': 'test', 
-                'description': 'descripion', 
-                'creator': {
-                    'email': 'wouter.grutter@gmail.com', 
-                    'self': True
-                }, 
-                'organizer': {
-                    'email': 'wouter.grutter@gmail.com', 
-                    'self': True
-                }, 
-                'start': {
-                    'dateTime': '2019-11-13T12:00:00+01:00', 
-                    'timeZone': 'Europe/Amsterdam'
-                }, 
-                'end': {
-                    'dateTime': '2019-11-13T13:00:00+01:00', 
-                    'timeZone': 'Europe/Amsterdam'
-                }, 
-                'iCalUID': 'jmr762ma2ja3bphruop04kta3o@google.com', 
-                'sequence': 0, 
-                'reminders': {
-                    'useDefault': True
-                }
+        '''
+        {
+            'kind': 'calendar#event', 
+            'etag': '"3147191931698000"', 
+            'id': 'jmr762ma2ja3bphruop04kta3o', 
+            'status': 'confirmed', 
+            'htmlLink': 'https://www.google.com/calendar/event?eid=am1yNzYybWEyamEzYnBocnVvcDA0a3RhM28gd291dGVyLmdydXR0ZXJAbQ', 
+            'created': '2019-11-12T21:59:25.000Z', 
+            'updated': '2019-11-12T21:59:25.849Z', 
+            'summary': 'test', 
+            'description': 'descripion', 
+            'creator': {
+                'email': 'wouter.grutter@gmail.com', 
+                'self': True
+            }, 
+            'organizer': {
+                'email': 'wouter.grutter@gmail.com', 
+                'self': True
+            }, 
+            'start': {
+                'dateTime': '2019-11-13T12:00:00+01:00', 
+                'timeZone': 'Europe/Amsterdam'
+            }, 
+            'end': {
+                'dateTime': '2019-11-13T13:00:00+01:00', 
+                'timeZone': 'Europe/Amsterdam'
+            }, 
+            'iCalUID': 'jmr762ma2ja3bphruop04kta3o@google.com', 
+            'sequence': 0, 
+            'reminders': {
+                'useDefault': True
             }
-            '''
+        }
+        '''
 
 
         

@@ -1,5 +1,6 @@
 from redbot.core import commands
 
+import re
 from datetime import datetime
 import asyncio
 import discord
@@ -21,6 +22,61 @@ class CreateCalendarEvent():
     # Check function if the user is equal to the person that started the command and its in the same channel
     def check(self, m):
         return m.author == self.ctx.author and m.channel == self.ctx.channel
+
+    def convertMentionsToUserIDs(self, message):
+        users = (mention.id for mention in message.mentions)
+        for role in message.role_mentions:
+            users = list(set().union(users, (member.id for member in role.members)))
+        return users
+
+    async def convertUserIdentificatorsToUsers(self, message):
+        registeredUsers = await self.config.guild(self.ctx.guild).usersConverter()
+        
+        # Check if everyone was mentioned
+        if message.mention_everyone:
+            return (user for user in registeredUsers)
+
+        # Get all the userIDs from the mentioned users
+        mentionedUserIDs = self.convertMentionsToUserIDs(message)
+        
+        # Remove command group and command name
+        userData = message.clean_content#.split(' ', 2)[1]
+
+        # Get all values that are in quotes
+        quotedValues = re.findall(r'"(.*?)"', userData)        
+        # Remove quoted values from other data
+        for val in quotedValues:
+            userData = userData.replace('"' + val + '"', "")
+
+        # Format all double spaces out of the content as we will be splitting on spaces
+        userData = re.sub(r"\s+"," ", userData, flags = re.I)
+
+        # Split on space
+        userData = userData.split()
+        
+        userData.extend(quotedValues)
+
+        def findUser(user):
+            for registeredUser in registeredUsers:
+                if str(user) == str(registeredUser['email']):
+                    return registeredUser
+                if registeredUser['name'].find(user) != -1:
+                    return registeredUser
+                if str(user) == str(registeredUser['studentID']):
+                    return registeredUser
+            return None
+    
+        users = []
+        for user in userData:
+            foundUser = findUser(user)
+            if foundUser != None:
+                users.append(foundUser)
+     
+        # Return list of unique users
+        uniqueUsersIDs = list(set().union([user['userID'] for user in users], mentionedUserIDs))
+        returnUsers = [user for user in registeredUsers if user['userID'] in uniqueUsersIDs]
+        return returnUsers
+
 
     async def HandleNameMessage(self):
         await self.stageMessage.edit(content="**What are we calling this event?**")
@@ -80,8 +136,7 @@ class CreateCalendarEvent():
         try:
             # Get attendees
             message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
-            #TODO: Convert @'s, numbers and names to user emails
-            self.attendees = message.content
+            self.attendees = await self.convertUserIdentificatorsToUsers(message)
             await message.delete()
             return True
         except asyncio.TimeoutError:
