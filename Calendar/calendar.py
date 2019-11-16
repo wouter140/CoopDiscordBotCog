@@ -222,7 +222,7 @@ class Calendar(commands.Cog):
 
         await asyncio.sleep(.15)
 
-        formattedDatetime = datetime.strptime(calendarEventHandler.time, "%d-%m-%Y %H:%M").strftime("%A, %d. %B %Y %I:%M%p")
+        formattedDatetime = calendarEventHandler.time.strftime("%A, %d. %B %Y %I:%M%p")
         embed.add_field(name="Start Time", value=formattedDatetime, inline=False)
         embed.set_footer(text="Event duration")
         await calendarDataMsg.edit(embed=embed)
@@ -234,7 +234,7 @@ class Calendar(commands.Cog):
 
         await asyncio.sleep(.15)
 
-        embed.add_field(name="Duration", value=calendarEventHandler.duration + " Hours", inline=False)
+        embed.add_field(name="Duration", value=calendarEventHandler.duration.strftime("%H:%M") + " Hours", inline=False)
         embed.set_footer(text="Event description")
         await calendarDataMsg.edit(embed=embed)
 
@@ -273,20 +273,17 @@ class Calendar(commands.Cog):
         await calendarEventHandler.stageMessage.edit(content="Creating Event...")
 
         # API Calls ===============================================================
-        async with ctx.channel.typing():
-            startDateTime = datetime.strptime(calendarEventHandler.time, "%d-%m-%Y %H:%M")
-
-            durationTimeObject = datetime.strptime(calendarEventHandler.duration, "%H:%M").time()
-            endDateTime = startDateTime + timedelta(hours=durationTimeObject.hour, minutes=durationTimeObject.minute)
+        async with ctx.channel.typing():         
             
-            print([{'email': user['email']} for user in calendarEventHandler.attendees])
+            durationTimeObject = calendarEventHandler.duration.time()
+            endDateTime = calendarEventHandler.time + timedelta(hours=durationTimeObject.hour, minutes=durationTimeObject.minute)
 
             # Create The Google Calendar Event
             event = service.events().insert(calendarId='primary', body={
                 'summary': calendarEventHandler.name,
                 'description': calendarEventHandler.description,
                 'start': {
-                    'dateTime': startDateTime.isoformat(),
+                    'dateTime': calendarEventHandler.time.isoformat(),
                     'timeZone': 'Europe/Amsterdam',
                 },
                 'end': {
@@ -294,7 +291,6 @@ class Calendar(commands.Cog):
                     'timeZone': 'Europe/Amsterdam',
                 },
                 'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees]
-                    #[ {'email': 'lpage@example.com'} ]
             }).execute()
             #TODO: Does not seem to send invitation emails, but does send cancellation emails
 

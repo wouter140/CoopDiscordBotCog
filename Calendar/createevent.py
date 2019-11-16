@@ -108,10 +108,21 @@ class CreateCalendarEvent():
         await self.stageMessage.edit(content="**When is this event going to take place?** *Format: DD-MM-YYYY HH:MM*")
     async def HandleTime(self):
         try:
-            # Get start time
-            message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
-            self.time = message.content #TODO: Validation of format
-            await message.delete()
+            retry = True
+            while retry:
+                retry = False
+                
+                # Get start time
+                message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
+                try:
+                    startDateTime = datetime.strptime(message.content, "%d-%m-%Y %H:%M")
+                except ValueError:
+                    retry = True
+                    await self.stageMessage.edit(content="**Thats an invalid Date and/or Time!** When is this event going to take place? ***Format: DD-MM-YYYY HH:MM***")
+                finally:
+                    await message.delete()
+                
+            self.time = startDateTime
             return True
         except asyncio.TimeoutError:
             await self.ctx.send("Timed out, stopped creating event!")
@@ -121,17 +132,28 @@ class CreateCalendarEvent():
         await self.stageMessage.edit(content="**How long is this event going to take?** *Format: HH:MM*")
     async def HandleDuration(self):
         try:
-            # Get duration
-            message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
-            self.duration = message.content #TODO: Validation of format
-            await message.delete()
+            retry = True
+            while retry:
+                retry = False
+                
+                # Get start time
+                message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
+                try:
+                    durationTime = datetime.strptime(message.content, "%H:%M")
+                except ValueError:
+                    retry = True
+                    await self.stageMessage.edit(content="**Thats an invalid Duration!** How long is this event going to take? ***Format: HH:MM***")
+                finally:
+                    await message.delete()
+                
+            self.duration = durationTime
             return True
         except asyncio.TimeoutError:
             await self.ctx.send("Timed out, stopped creating event!")
             return False
 
     async def HandleAttendeesMessage(self):
-        await self.stageMessage.edit(content="**Anyone that has to attend this meeting?**")
+        await self.stageMessage.edit(content="**Anyone that has to attend this meeting?** *Discord Tag, studentID or Name works (full name in quotes)*")
     async def HandleAttendees(self):
         try:
             # Get attendees
@@ -144,8 +166,9 @@ class CreateCalendarEvent():
             return False
 
     async def FinishEventMessage(self):
-        formattedDatetime = datetime.strptime(self.time, "%d-%m-%Y %H:%M").strftime("%A, %d. %B %Y %I:%M%p")
-        await self.stageMessage.edit(content=f"Do you want to confirm this Event at **{formattedDatetime}** for **{self.duration}**?")
+        formattedDatetime = self.time.strftime("%A, %d. %B %Y %I:%M%p")
+        formattedDuration = self.duration.strftime("%H:%M")
+        await self.stageMessage.edit(content=f"Do you want to confirm this Event at **{formattedDatetime}** for **{formattedDuration}**?")
         await self.stageMessage.add_reaction(await self.config.guild(self.ctx.guild).successEmoji())
         await self.stageMessage.add_reaction(await self.config.guild(self.ctx.guild).cancelEmoji())
     async def FinishEvent(self):
