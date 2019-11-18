@@ -41,13 +41,13 @@ class CreateCalendarEvent():
         mentionedUserIDs = self.convertMentionsToUserIDs(message)
         
         # Remove command group and command name
-        userData = message.clean_content#.split(' ', 2)[1]
+        userData = re.sub(r'<@&?\d+>', '', message.content)
 
         # Get all values that are in quotes
-        quotedValues = re.findall(r'"(.*?)"', userData)        
+        quotedValues = re.findall(r'"(.*?)"', userData)
+            
         # Remove quoted values from other data
-        for val in quotedValues:
-            userData = userData.replace('"' + val + '"', "")
+        userData = re.sub(r'"(.*?)"', '', userData)
 
         # Format all double spaces out of the content as we will be splitting on spaces
         userData = re.sub(r"\s+"," ", userData, flags = re.I)
@@ -59,24 +59,24 @@ class CreateCalendarEvent():
 
         def findUser(user):
             for registeredUser in registeredUsers:
-                if str(user) == str(registeredUser['email']):
+                if str(user).lower() == str(registeredUser['email']).lower():
                     return registeredUser
-                if registeredUser['name'].find(user) != -1:
+                if registeredUser['name'].lower().find(user.lower()) != -1:
                     return registeredUser
                 if str(user) == str(registeredUser['studentID']):
                     return registeredUser
             return None
     
-        users = []
+        users = self.attendees
         externalUsers = []
         unknownUsers = []
         for user in userData:
             foundUser = findUser(user)
-            if foundUser != None:
+            if foundUser != None: # Check for user found in registered users
                 users.append(foundUser)
-            elif re.search(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", user):
+            elif re.search(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", user): # Check for email adress to make an external user
                 externalUsers.append(user)
-            else:
+            else: # otherwise its an unknown user.
                 unknownUsers.append(user)
      
         # Return list of unique users
@@ -181,13 +181,13 @@ class CreateCalendarEvent():
                 convertedAttendees = await self.convertUserIdentificatorsToUsers(message)
                 await message.delete()
                 
-                self.attendees.extend(convertedAttendees['users'])
+                self.attendees = convertedAttendees['users']
 
                 if len(convertedAttendees['external']) > 0:
                     self.externalAttendees.extend(convertedAttendees['external'])
 
                 if len(convertedAttendees['unknown']) > 0 and not unknownRetry:
-                    await self.stageMessage.edit(content="**Unknown Users:** " + ', '.join(convertedAttendees['unknown']) + '. Enter these users or "continue"')
+                    await self.stageMessage.edit(content="**Unknown Users:** ``" + ', '.join(convertedAttendees['unknown']) + '``. Enter these users or "continue" to skip.')
                     unknownRetry = True
                     retry = True
                 elif len(self.attendees) <= 0 and len(self.externalAttendees) <= 0:
