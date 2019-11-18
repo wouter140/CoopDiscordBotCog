@@ -11,6 +11,7 @@ class CreateCalendarEvent():
     time = None
     duration = None
     attendees = None
+    externalAttendees = None
 
     stageMessage = None
 
@@ -67,15 +68,25 @@ class CreateCalendarEvent():
             return None
     
         users = []
+        externalUsers = []
+        unknownUsers = []
         for user in userData:
             foundUser = findUser(user)
             if foundUser != None:
                 users.append(foundUser)
+            elif re.search(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", user):
+                externalUsers.append(user)
+            else:
+                unknownUsers.append(user)
      
         # Return list of unique users
         uniqueUsersIDs = list(set().union(set(), [user['userID'] for user in users], mentionedUserIDs))
         returnUsers = [user for user in registeredUsers if user['userID'] in uniqueUsersIDs]
-        return returnUsers
+        return {
+            "users": returnUsers,
+            "external": externalUsers,
+            "unknown": unknownUsers
+        }
 
 
     async def HandleNameMessage(self):
@@ -153,13 +164,37 @@ class CreateCalendarEvent():
             return False
 
     async def HandleAttendeesMessage(self):
-        await self.stageMessage.edit(content="**Anyone that has to attend this meeting?** *Discord Tag, studentID or Name works (full name in quotes)*")
+        await self.stageMessage.edit(content="**Anyone that has to attend this meeting?** *Discord Tag, studentID, email or Name works (full name in quotes)*")
     async def HandleAttendees(self):
         try:
-            # Get attendees
-            message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
-            self.attendees = await self.convertUserIdentificatorsToUsers(message)
-            await message.delete()
+            retry = True
+            unknownRetry = False
+            self.attendees = list()
+            self.externalAttendees = list()
+
+            while retry:
+                retry = False
+
+                # Get attendees
+                message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
+
+                convertedAttendees = await self.convertUserIdentificatorsToUsers(message)
+                await message.delete()
+                
+                self.attendees.extend(convertedAttendees['users'])
+
+                if len(convertedAttendees['external']) > 0:
+                    self.externalAttendees.extend(convertedAttendees['external'])
+
+                if len(convertedAttendees['unknown']) > 0 and not unknownRetry:
+                    await self.stageMessage.edit(content="**Unknown Users:** " + ', '.join(convertedAttendees['unknown']) + '. Enter these users or "continue"')
+                    unknownRetry = True
+                    retry = True
+                elif len(self.attendees) <= 0 and len(self.externalAttendees) <= 0:
+                    await self.stageMessage.edit(content="**No users entered!** ***Discord Tag, studentID, email or Name works (full name in quotes).***")
+                    retry = True
+                    unknownRetry = False
+
             return True
         except asyncio.TimeoutError:
             await self.ctx.send("Timed out, stopped creating event!")
