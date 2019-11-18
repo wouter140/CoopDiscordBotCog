@@ -5,6 +5,7 @@ import asyncio
 from datetime import timedelta, datetime
 import pickle
 
+from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -188,11 +189,6 @@ class Calendar(commands.Cog):
         # Create the calendar event    
         calendarEventHandler = CreateCalendarEvent(ctx, self.bot, self.config)
 
-        # Get event create user name 
-        creatorName = ctx.message.author.nick
-        if creatorName is None:
-            creatorName = ctx.message.author.name
-
         # Create editable event data message ======================================
         embed = discord.Embed(type="rich", colour=100)
         embed.set_footer(text="Event name")
@@ -282,77 +278,88 @@ class Calendar(commands.Cog):
             
             registeredCalendarUsers = [{'email': user['email']} for user in calendarEventHandler.attendees]
             externalCalendarusers = [{'email': user} for user in calendarEventHandler.externalAttendees]
+            
+            # Get event create user name and email
+            registeredUsers = await self.config.guild(self.ctx.guild).usersConverter()
+            user = next((user for user in registeredCalendarUsers if user['userID'] == ctx.message.author.id), None)
+            userName = ""
+            userEmail = ""
+            if not user:
+                userName = ctx.message.author.nick
+                if userName is None:
+                    userName = ctx.message.author.name
+            else:
+                userName = user['name']
+                userEmail = user['email']
 
-            # Create The Google Calendar Event
-            event = service.events().insert(calendarId='primary', body={
-                'summary': calendarEventHandler.name,
-                'description': calendarEventHandler.description,
-                'start': {
-                    'dateTime': calendarEventHandler.time.isoformat(),
-                    'timeZone': 'Europe/Amsterdam',
-                },
-                'end': {
-                    'dateTime': endDateTime.isoformat(),
-                    'timeZone': 'Europe/Amsterdam',
-                },
-                'attendees': registeredCalendarUsers + externalCalendarusers
-            }, sendNotifications=True).execute()
+            try:
+                
+                # Create The Google Calendar Event
+                event = service.events().insert(calendarId='primary', body={
+                    'summary': calendarEventHandler.name,
+                    'description': 'Creator: ' + userName + "(" + userEmail + ")" + "\n\n" + calendarEventHandler.description,
+                    'start': {
+                        'dateTime': calendarEventHandler.time.isoformat(),
+                        'timeZone': 'Europe/Amsterdam',
+                    },
+                    'end': {
+                        'dateTime': endDateTime.isoformat(),
+                        'timeZone': 'Europe/Amsterdam',
+                    },
+                    'attendees': registeredCalendarUsers + externalCalendarusers,
+                    'anyoneCanAddSelf': True,
+                    'guestsCanModify': True
+                }, sendUpdates='all').execute()
 
-            await calendarEventHandler.stageMessage.edit(content="Successfully Created Your Event!")
-            await calendarEventHandler.stageMessage.delete(delay=6)
+                await calendarEventHandler.stageMessage.edit(content="Successfully Created Your Event!")
+                await calendarEventHandler.stageMessage.delete(delay=6)
 
-            # Get link to send and add it to complete message
-            eventLink = event.get('htmlLink')
-            linkMsg = await ctx.send(f"You can find the event at {eventLink}", delete_after=3)
-            await linkMsg.edit(suppress=True)
+                # Get link to send and add it to complete message
+                eventLink = event.get('htmlLink')
+                linkMsg = await ctx.send(f"You can find the event at {eventLink}", delete_after=3)
+                await linkMsg.edit(suppress=True)
 
-            embed.set_author(name='Created Calendar Event', icon_url=ctx.message.author.avatar_url, url=eventLink)
-            embed.add_field(name="Event Link", value=eventLink, inline=False)
-            await calendarDataMsg.edit(embed=embed)
+                embed.set_author(name='Created Calendar Event', icon_url=ctx.message.author.avatar_url, url=eventLink)
+                embed.add_field(name="Event ID", value=event.get('id'), inline=False)
+                embed.add_field(name="Event Link", value=eventLink, inline=False)
+                await calendarDataMsg.edit(embed=embed)
+            
+            except HttpError as e:
+                await ctx.send("Error while creating the event. Code: " + e.resp.status + " Message: " + e._get_reason())
+                await calendarDataMsg.delete(delay=5)
+                await calendarEventHandler.stageMessage.delete()
+                return
             
         # Cleanup =================================================================
         #TODO: Send created event message to separate readonly events channel and, remove this one / keep small, to keep channel sorta clean
-        
-        #TODO: Send personal messages to people that have been invited
         #TODO: Make it possible for others to add themselves
-        #TODO: Possibly an x emote to delete the event (only works for creator)
+        
+        #TODO: Send personal messages to people that have been invited?
 
-        '''
-        {
-            'kind': 'calendar#event', 
-            'etag': '"3147191931698000"', 
-            'id': 'jmr762ma2ja3bphruop04kta3o', 
-            'status': 'confirmed', 
-            'htmlLink': 'https://www.google.com/calendar/event?eid=am1yNzYybWEyamEzYnBocnVvcDA0a3RhM28gd291dGVyLmdydXR0ZXJAbQ', 
-            'created': '2019-11-12T21:59:25.000Z', 
-            'updated': '2019-11-12T21:59:25.849Z', 
-            'summary': 'test', 
-            'description': 'descripion', 
-            'creator': {
-                'email': 'wouter.grutter@gmail.com', 
-                'self': True
-            }, 
-            'organizer': {
-                'email': 'wouter.grutter@gmail.com', 
-                'self': True
-            }, 
-            'start': {
-                'dateTime': '2019-11-13T12:00:00+01:00', 
-                'timeZone': 'Europe/Amsterdam'
-            }, 
-            'end': {
-                'dateTime': '2019-11-13T13:00:00+01:00', 
-                'timeZone': 'Europe/Amsterdam'
-            }, 
-            'iCalUID': 'jmr762ma2ja3bphruop04kta3o@google.com', 
-            'sequence': 0, 
-            'reminders': {
-                'useDefault': True
-            }
-        }
-        '''
+    @calendar.command(aliases=['removeevent', 'delete', 'deleteevent'])
+    async def remove(self, ctx: commands.Context, eventID: str, notify: str = "no"):
+        service = self.get_calendar_service()
+        if not service:
+            await ctx.send("Invalid Calendar Credentials! Contact bot owner to add these.")
+            return
+        
+        sendUpdates = 'none'
+        if(notify == 'yes'):
+            sendUpdates = 'all'
+        elif(notify == 'external'):
+            sendUpdates = 'externalOnly'
+        
+        # API Calls ===============================================================
+        async with ctx.channel.typing():         
+            # Remove The Google Calendar Event
+            try:
+                service.events().delete(calendarId='primary', eventId=eventID, sendUpdates=sendUpdates).execute()
+                await ctx.send("Removed calendar event!")
+            except HttpError as e:
+                await ctx.send("Error while removing the event. Code: " + e.resp.status + " Message: " + e._get_reason())
+                
 
-
+        
         
 
 
