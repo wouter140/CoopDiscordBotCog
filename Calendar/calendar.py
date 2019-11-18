@@ -279,6 +279,9 @@ class Calendar(commands.Cog):
             
             durationTimeObject = calendarEventHandler.duration.time()
             endDateTime = calendarEventHandler.time + timedelta(hours=durationTimeObject.hour, minutes=durationTimeObject.minute)
+            
+            registeredCalendarUsers = [{'email': user['email']} for user in calendarEventHandler.attendees]
+            externalCalendarusers = [{'email': user} for user in calendarEventHandler.externalAttendees]
 
             # Create The Google Calendar Event
             event = service.events().insert(calendarId='primary', body={
@@ -292,9 +295,8 @@ class Calendar(commands.Cog):
                     'dateTime': endDateTime.isoformat(),
                     'timeZone': 'Europe/Amsterdam',
                 },
-                'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees].extend([{'email': user} for user in calendarEventHandler.externalAttendees])
-            }).execute()
-            #TODO: Does not seem to send invitation emails, but does send cancellation emails
+                'attendees': registeredCalendarUsers + externalCalendarusers
+            }, sendNotifications=True).execute()
 
             await calendarEventHandler.stageMessage.edit(content="Successfully Created Your Event!")
             await calendarEventHandler.stageMessage.delete(delay=6)
