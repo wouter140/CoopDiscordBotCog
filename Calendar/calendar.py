@@ -257,6 +257,8 @@ class Calendar(commands.Cog):
         await asyncio.sleep(.15)
         
         users = ''.join(["<@" + str(user['userID']) + ">" for user in calendarEventHandler.attendees])
+        if len(calendarEventHandler.externalAttendees) > 0:
+            users += ' **External:** ' + ', '.join([user for user in calendarEventHandler.externalAttendees])
         embed.add_field(name="Attendees", value=users, inline=False)
         embed.set_footer(text="Finishing up event")
         await calendarDataMsg.edit(embed=embed)
@@ -290,7 +292,7 @@ class Calendar(commands.Cog):
                     'dateTime': endDateTime.isoformat(),
                     'timeZone': 'Europe/Amsterdam',
                 },
-                'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees]
+                'attendees': [{'email': user['email']} for user in calendarEventHandler.attendees].extend([{'email': user} for user in calendarEventHandler.externalAttendees])
             }).execute()
             #TODO: Does not seem to send invitation emails, but does send cancellation emails
 
