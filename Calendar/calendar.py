@@ -281,7 +281,7 @@ class Calendar(commands.Cog):
             
             # Get event create user name and email
             registeredUsers = await self.config.guild(self.ctx.guild).usersConverter()
-            user = next((user for user in registeredCalendarUsers if user['userID'] == ctx.message.author.id), None)
+            user = next((user for user in registeredUsers if user['userID'] == ctx.message.author.id), None)
             userName = ""
             userEmail = ""
             if not user:
@@ -357,10 +357,3 @@ class Calendar(commands.Cog):
                 await ctx.send("Removed calendar event!")
             except HttpError as e:
                 await ctx.send("Error while removing the event. Code: " + e.resp.status + " Message: " + e._get_reason())
-                
-
-        
-        
-
-
-        
