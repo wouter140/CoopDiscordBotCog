@@ -25,9 +25,11 @@ class CreateCalendarEvent():
         return m.author == self.ctx.author and m.channel == self.ctx.channel
 
     def convertMentionsToUserIDs(self, message):
-        users = (mention.id for mention in message.mentions)
+        users = [message.author.id]
+        users = list(set().union(users, (mention.id for mention in message.mentions)))
         for role in message.role_mentions:
             users = list(set().union(users, (member.id for member in role.members)))
+        
         return users
 
     async def convertUserIdentificatorsToUsers(self, message):

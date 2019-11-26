@@ -44,11 +44,18 @@ To load the Calendar package
 ```bash
 !load Calendar
 
+# Admin Commands
+!calendar getRegisteredUsers #List of registered users in the guild
+!calendar credentials #Refresh or setup credentials, is also done in init
+
 # Initial Setup
-!calendar init
+!calendar init #(Owner only) command to initialize the calendar in the guild
+!calendar addUser <discord tag> <fullname> <email> <studentId> #Add a user to the calendar that can be tagged in events
+!calendar addSelf <fullname> <email> <studentId> #Add self as a user to the calendar that can be tagged in events
 
 # Commands
-!calendar create
+!calendar create #Create a new event
+!calendar remove <calendar event Id> #Remove an event by id
 ```
 
 
