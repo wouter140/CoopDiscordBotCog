@@ -11,6 +11,11 @@ from collections import deque
 
 from steam.webapi import WebAPI, APIHost
 
+import importlib.util
+spec = importlib.util.spec_from_file_location("module.name", os.path.dirname(os.path.realpath(__file__)) + "/../Logger/logger.py")
+foo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(foo)
+
 # instance.<interface>.<method>
 # https://partner.steamgames.com/doc/webapi/ISteamApps#SetAppBuildLive
 # https://partner.steamgames.com/doc/webapi_overview/responses#status_codes
@@ -53,8 +58,10 @@ class Steam(commands.Cog):
         steamBuilds = await self.getUpdatedSteamBuilds(guild)
         if steamBuilds:
             print("Loaded " + str(len(steamBuilds)) + " Steam Builds")
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Info, f"Steam", f"Init - Loaded **{str(len(steamBuilds))}** Steam builds!")
         else:
             print("Unable to load steam builds!")
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Warning, f"Steam", f"Init - Was unable to load steam builds or there were none!")
     
     async def getUpdatedSteamBuilds(self, guild):
         steamAPIInstance = await self.getSteamPartnerAPIInstance(guild)
@@ -63,6 +70,7 @@ class Steam(commands.Cog):
         
         appID = await self.config.guild(guild).appid()
         if appID is None:
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Warning, f"Steam", f"getUpdatedSteamBuilds - No Steam AppID Set")
             return None
 
         steamAPIInstance.ISteamApps.GetAppBuilds(appid=appID, count=self.maxSteamBuildsRequestSize)
@@ -88,35 +96,45 @@ class Steam(commands.Cog):
             
         return list(steamBuilds)
 
-    async def getSteamBuildIDFromJenkinsBuildID(self, guild, jenkins_build_number: int, refreshIfUnavailable: bool = True):
+    async def getSteamBuildIDFromJenkinsBuildID(self, guild, jenkins_build_number: int, useBuildIdentifier: bool = True, refreshIfUnavailable: bool = True):
         buildIdentifier = await self.config.guild(guild).buildsIdentifier()
         # Get Steam BuildId from a Jenkins BuildId
         storedSteamBuildObjects = await self.config.guild(guild).steamBuilds()
-        build_number = next((int(build['build_number']) for build in storedSteamBuildObjects if build['description'].lower().find(buildIdentifier.lower()) != -1 and int(build['jenkins_build_number']) == jenkins_build_number))
+        if useBuildIdentifier:
+            build_number = next((int(build['build_number']) for build in storedSteamBuildObjects if build['description'].lower().find(buildIdentifier.lower()) != -1 and int(build['jenkins_build_number']) == jenkins_build_number))
+        else:
+            build_number = next((int(build['build_number']) for build in storedSteamBuildObjects if int(build['jenkins_build_number']) == jenkins_build_number))
+        
         # If build number was not found, refresh the steam builds once and try again
         if not build_number and refreshIfUnavailable:
-            self.getUpdatedSteamBuilds()
-            return await self.getSteamBuildIDFromJenkinsBuildID(guild, jenkins_build_number, False)
+            await self.getUpdatedSteamBuilds(guild)
+            return await self.getSteamBuildIDFromJenkinsBuildID(guild, jenkins_build_number, useBuildIdentifier, False)
         return build_number
-    async def getJenkinsBuildIDFromSteamBuildID(self, guild, steam_build_number: int, refreshIfUnavailable: bool = True):
+    async def getJenkinsBuildIDFromSteamBuildID(self, guild, steam_build_number: int, useBuildIdentifier: bool = True, refreshIfUnavailable: bool = True):
         buildIdentifier = await self.config.guild(guild).buildsIdentifier()
         # Get Jenkins BuildId from a Steam BuildId
         storedSteamBuildObjects = await self.config.guild(guild).steamBuilds()
-        build_number = next((int(build['jenkins_build_number']) for build in storedSteamBuildObjects if build['description'].lower().find(buildIdentifier.lower()) != -1 and int(build['build_number']) == steam_build_number))
+        if useBuildIdentifier:
+            build_number = next((int(build['jenkins_build_number']) for build in storedSteamBuildObjects if build['description'].lower().find(buildIdentifier.lower()) != -1 and int(build['build_number']) == steam_build_number), None)
+        else:
+            build_number = next((int(build['jenkins_build_number']) for build in storedSteamBuildObjects if int(build['build_number']) == steam_build_number), None)
+        
         # If build number was not found, refresh the steam builds once and try again
         if not build_number and refreshIfUnavailable:
-            self.getUpdatedSteamBuilds()
-            return await self.getSteamBuildIDFromJenkinsBuildID(guild, steam_build_number, False)
+            await self.getUpdatedSteamBuilds(guild)
+            return await self.getJenkinsBuildIDFromSteamBuildID(guild, steam_build_number, useBuildIdentifier, False)
         return build_number
     
     async def getCurrentSteamBranchBuilds(self, guild):
         steamAPIInstance = await self.getSteamPartnerAPIInstance(guild)
         if steamAPIInstance is None:
             print("No Steam API Key Set. Use the !steam webAPIKey <webapikey> command to set it!")
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Warning, f"Steam", f"getCurrentSteamBranchBuilds - No Steam API Key Set")
             return None
         appID = await self.config.guild(guild).appid()
         if appID is None:
             print("No Steam AppID Set. Use the !steam setSteamAppID <apiId> command to set it!")
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Warning, f"Steam", f"getCurrentSteamBranchBuilds - No Steam AppID Set")
             return None
 
         steamAPIInstance.ISteamApps.GetAppBetas(appid=appID)
@@ -125,13 +143,13 @@ class Steam(commands.Cog):
         if response['response']['result'] is 1:
             return response['response']['betas']
         else: 
+            await foo.Logger().logEventMessage(guild, foo.Logger.Type.Info, f"Steam", f"getCurrentSteamBranchBuilds - Didn't receive any response results")
             return None
         
     
     @commands.group()
     async def steam(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send('Invalid steam command passed...')
+        pass
 
     # =========== INITialization =====================
     @steam.command()
@@ -140,18 +158,21 @@ class Steam(commands.Cog):
         await ctx.message.delete(delay=3)
         await self.config.guild(ctx.guild).steamWebAPIKey.set(new_value)
         await ctx.send("Steam WebAPIKey has been updated!")
+        await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Steam web api key has been updated by `{ctx.author.name}`")
     @steam.command()
     @checks.is_owner()
     async def appID(self, ctx: commands.Context, new_value: int):
         await ctx.message.delete(delay=3)
         await self.config.guild(ctx.guild).appid.set(new_value)
         await ctx.send("Steam AppID has been updated!")
+        await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Steam App ID has been updated by `{ctx.author.name}`")
     @steam.command()
     @checks.is_owner()
     async def buildIdentifier(self, ctx: commands.Context, identifier: str):
         await ctx.message.delete(delay=3)
         await self.config.guild(ctx.guild).buildsIdentifier.set(identifier)
         await ctx.send("Steam Builds Identifier has been updated!")
+        await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Steam Build Identifier has been updated by `{ctx.author.name}` to `{identifier}`")
         
         
     # Get the current build ID's on the steam branches
@@ -168,7 +189,10 @@ class Steam(commands.Cog):
             embed = discord.Embed(type="rich", colour=0)
 
             for i, branch in enumerate(steamBranchBuilds):
-                jenkinsID = next((build['jenkins_build_number'] for build in steamBuilds if build['build_number'] == steamBranchBuilds[branch]["BuildID"]), "unknown")
+                #jenkinsID = next((build['jenkins_build_number'] for build in steamBuilds if build['build_number'] == steamBranchBuilds[branch]["BuildID"]), "unknown")
+                jenkinsID = await self.getJenkinsBuildIDFromSteamBuildID(ctx.guild, int(steamBranchBuilds[branch]["BuildID"]), False)
+                if not jenkinsID:
+                    jenkinsID = "unknown"
                 embed.add_field(name=branch, value=steamBranchBuilds[branch]["BuildID"], inline=True)
                 embed.add_field(name="Jenkins Build" if i is 0 else "\n\u200b", value=jenkinsID, inline=True)
                 embed.add_field(name="\n\u200b", value="\n\u200b", inline=True)
@@ -177,18 +201,21 @@ class Steam(commands.Cog):
     
     @steam.command(aliases=['p', 'update', 'set'])
     async def push(self, ctx: commands.Context, branch: str, build_number: int):
-        if branch is 'public' or branch is 'default':
-                await ctx.send("Not allowed to update the public branch here! Discuss this to make sure to push to the public **(live)** branch and do this in the Steamworks page!")
-                return
+        if branch == 'public' or branch == 'default':
+            await ctx.send("Not allowed to update the public branch here! Discuss this to make sure to push to the public **(live)** branch and do this in the Steamworks page!")
+            await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Info, f"Steam", f"`{ctx.author.name}` Tried to push **{str(build_number)}** to public!")
+            return
 
         async with ctx.channel.typing():
             steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx.guild)
             if steamAPIInstance is None:
                 await ctx.send("No steam WebAPIKey set! Use the !steam webAPIKey <webapikey> command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Push - No Steam API Key Set")
                 return
             appID = await self.config.guild(ctx.guild).appid()
             if appID is None:
                 await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Push - No Steam AppID Set")
                 return
             
             steam_from_jenkins_build_number = await self.getSteamBuildIDFromJenkinsBuildID(ctx.guild, build_number)
@@ -200,8 +227,10 @@ class Steam(commands.Cog):
             
             if response['response']['result'] is 1:
                 await ctx.send(f"Updated **{branch}** to build **{build_number}**. Check Steam for the update!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Info, f"Steam", f"`{ctx.author.name}` Pushed **{build_number}** to **{branch}**")
             else: 
                 await ctx.send("Error: " + str(response['response']['message']))
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Error, f"Steam", f"Error from pushing build request `{str(response['response']['message'])}`")
                 
     @steam.command(aliases=['u', 'up'])
     async def upgrade(self, ctx: commands.Context, branch: str):
@@ -209,10 +238,12 @@ class Steam(commands.Cog):
             steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx.guild)
             if steamAPIInstance is None:
                 await ctx.send("No steam WebAPIKey set! Use the `!steam webAPIKey <webapikey>` command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Upgrade - No Steam API Key Set")
                 return
             appID = await self.config.guild(ctx.guild).appid()
             if appID is None:
                 await ctx.send("No AppID set! Use the `!steam setSteamAppID <apiId>` command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Upgrade - No Steam AppID Set")
                 return
 
             branch_upgrader = {
@@ -240,9 +271,11 @@ class Steam(commands.Cog):
             response = steamAPIInstance.call('ISteamApps.SetAppBuildLive', appid=appID, buildid=build_number, betakey=branch)
             
             if response['response']['result'] is 1:
-                await ctx.send(f"Upgraded **{branch}** with build **{build_number}** to **{upgrade_branch}**. Check Steam for the update!")
+                await ctx.send(f"Upgraded **{upgrade_branch}** with build **{build_number}** from **{branch}**. Check Steam for the update!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Info, f"Steam", f"`{ctx.author.name}` Upgraded build **{build_number}** from **{branch}** to **{upgrade_branch}**")
             else: 
                 await ctx.send("Error: " + str(response['response']['message']))
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Error, f"Steam", f"Upgrade - Error from update build request `{str(response['response']['message'])}`")
 
 
     @steam.command(aliases=['b', 'getbuilds'])
@@ -252,11 +285,13 @@ class Steam(commands.Cog):
             steamAPIInstance = await self.getSteamPartnerAPIInstance(ctx.guild)
             if steamAPIInstance is None:
                 await ctx.send("No steam WebAPIKey set! Use the !steam webAPIKey <webapikey> command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Builds - No Steam API Key Set")
                 return
             
             appID = await self.config.guild(ctx.guild).appid()
             if appID is None:
                 await ctx.send("No AppID set! Use the setSteamAppID <apiId> command to set it!")
+                await foo.Logger().logEventMessage(ctx.guild, foo.Logger.Type.Warning, f"Steam", f"Builds - No Steam AppID Set")
                 return
 
             steamAPIInstance.ISteamApps.GetAppBuilds(appid=appID, count=25)

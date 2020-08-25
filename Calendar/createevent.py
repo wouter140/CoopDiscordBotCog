@@ -37,13 +37,17 @@ class CreateCalendarEvent():
         
         # Check if everyone was mentioned
         if message.mention_everyone:
-            return (user for user in registeredUsers)
-
+            return {
+                "users": [user for user in registeredUsers],
+                "external": list(),
+                "unknown": list()
+            }
+            
         # Get all the userIDs from the mentioned users
         mentionedUserIDs = self.convertMentionsToUserIDs(message)
         
-        # Remove command group and command name
-        userData = re.sub(r'<@&?\d+>', '', message.content)
+        # Remove mentions
+        userData = re.sub(r'<@!?&?\d+>', '', message.content)
 
         # Get all values that are in quotes
         quotedValues = re.findall(r'"(.*?)"', userData)
@@ -96,22 +100,28 @@ class CreateCalendarEvent():
     async def HandleName(self):
         try:
             # Get message
-            message = await self.bot.wait_for('message', timeout=30.0, check=self.check)
+            message = await self.bot.wait_for('message', timeout=90.0, check=self.check)
             self.name = message.content
             await message.delete()
+            if message.content.lower() == 'cancel':
+                await self.ctx.send("Cancelled creating event!")
+                return False
             return True
         except asyncio.TimeoutError:
             await self.ctx.send("Timed out, stopped creating event!")
             return False
 
     async def HandleDescriptionMessage(self):
-        await self.stageMessage.edit(content="**Do you have a more detailed description?**")
+        await self.stageMessage.edit(content="**Provide a more detailed description for the event**")
     async def HandleDescription(self):
         try:
             # Get description
-            message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
+            message = await self.bot.wait_for('message', timeout=180.0, check=self.check)
             self.description = message.content
             await message.delete()
+            if message.content.lower() == 'cancel':
+                await self.ctx.send("Cancelled creating event!")
+                return False
             return True
         except asyncio.TimeoutError:
             await self.ctx.send("Timed out, stopped creating event!")
@@ -126,7 +136,13 @@ class CreateCalendarEvent():
                 retry = False
                 
                 # Get start time
-                message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
+                message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
+                
+                if message.content.lower() == 'cancel':
+                    await self.ctx.send("Cancelled creating event!")
+                    await message.delete()
+                    return False
+                
                 try:
                     startDateTime = datetime.strptime(message.content, "%d-%m-%Y %H:%M")
                 except ValueError:
@@ -150,7 +166,13 @@ class CreateCalendarEvent():
                 retry = False
                 
                 # Get start time
-                message = await self.bot.wait_for('message', timeout=40.0, check=self.check)
+                message = await self.bot.wait_for('message', timeout=60.0, check=self.check)
+                
+                if message.content.lower() == 'cancel':
+                    await self.ctx.send("Cancelled creating event!")
+                    await message.delete()
+                    return False
+                
                 try:
                     durationTime = datetime.strptime(message.content, "%H:%M")
                 except ValueError:
@@ -178,8 +200,13 @@ class CreateCalendarEvent():
                 retry = False
 
                 # Get attendees
-                message = await self.bot.wait_for('message', timeout=120.0, check=self.check)
+                message = await self.bot.wait_for('message', timeout=180.0, check=self.check)
 
+                if message.content.lower() == 'cancel':
+                    await self.ctx.send("Cancelled creating event!")
+                    await message.delete()
+                    return False
+                
                 convertedAttendees = await self.convertUserIdentificatorsToUsers(message)
                 await message.delete()
                 
@@ -213,7 +240,7 @@ class CreateCalendarEvent():
             def check(reaction, user):
                 return user == self.ctx.author
             # Get confirmation
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=20.0, check=check)
+            reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
             confirm = (str(reaction) == await self.config.guild(self.ctx.guild).successEmoji())
             await self.stageMessage.clear_reactions()
             return confirm
